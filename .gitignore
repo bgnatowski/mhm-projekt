@@ -170,3 +170,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/modules.xml
+.idea/projekt-mmh.iml
+.idea/vcs.xml
+.idea/workspace.xml

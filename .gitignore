@@ -175,3 +175,4 @@ cython_debug/
 .idea/projekt-mmh.iml
 .idea/vcs.xml
 .idea/workspace.xml
+.idea

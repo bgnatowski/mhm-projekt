@@ -184,13 +184,27 @@ def simulated_annealing(iterations=1000, initial_temp=1000.0, alpha=0.99):
     return best_solution, best_distance
 
 
-# === 5. Uruchomienie algorytmu symulowanego wyżarzania ===
-solution, dist = simulated_annealing(iterations=2000, initial_temp=2000.0, alpha=0.995)
+# # === 5. Uruchomienie algorytmu symulowanego wyżarzania ===
+best_overall = None
+best_distance = float('inf')
+for _ in range(10):  # 10 niezależnych uruchomień
+    sol, dist = simulated_annealing(iterations=5000, initial_temp=5000.0, alpha=0.997)
+    if dist < best_distance:
+        best_distance = dist
+        best_overall = sol
 
-print("\nNajlepsze znalezione rozwiązanie (trasy):")
-for truck_idx, route in enumerate(solution):
-    # Wyświetlamy nazwy miast dla każdej trasy
+print(f"\nNajlepsze rozwiązanie spośród wielu uruchomień: {best_distance:.2f} km")
+for truck_idx, route in enumerate(best_overall):
     route_cities = [cities[idx][0] for idx in route]
-    print(f"Samochód {truck_idx + 1}: {route_cities}")
+    print(f"Samochód {truck_idx+1}: {route_cities}")
 
-print(f"\nCałkowity dystans: {dist:.2f} km")
+# solution, dist = simulated_annealing(iterations=5000, initial_temp=5000.0, alpha=0.997)
+#
+# print("\nNajlepsze znalezione rozwiązanie (trasy):")
+# for truck_idx, route in enumerate(solution):
+#     # Wyświetlamy nazwy miast dla każdej trasy
+#     route_cities = [cities[idx][0] for idx in route]
+#     print(f"Samochód {truck_idx + 1}: {route_cities}")
+#
+# print(f"\nCałkowity dystans: {dist:.2f} km")
+

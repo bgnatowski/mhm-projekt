@@ -20,7 +20,7 @@ NUM_TRUCKS = 5
 TRUCK_CAPACITY = 1000
 
 cities = [
-    ("Kraków", (50.06143, 19.93658), 0),   # index 0, depo
+    ("Kraków", (50.06143, 19.93658), 0),  # index 0, depo
     ("Białystok", (53.13333, 23.15), 500),
     ("Bielsko-Biała", (49.82238, 19.05838), 50),
     ("Chrzanów", (50.13554, 19.40262), 400),
@@ -56,7 +56,7 @@ cities = [
 NUM_CITIES = len(cities)
 
 # ------------------------------------------------------------------------------
-#  3. Pobieranie macierzy odległości (OpenRouteService)
+#  3. Pobranie macierzy odległości (OpenRouteService)
 # ------------------------------------------------------------------------------
 client = openrouteservice.Client(key=API_KEY)
 
@@ -77,6 +77,7 @@ for i in range(NUM_CITIES):
         else:
             distance_matrix[(i, j)] = dist_matrix_meters[i][j] / 1000.0  # w km
 
+
 # ------------------------------------------------------------------------------
 #  4. Funkcje pomocnicze
 # ------------------------------------------------------------------------------
@@ -86,13 +87,15 @@ def route_distance(route):
         return 0.0
     dist = distance_matrix[(0, route[0])]
     for i in range(len(route) - 1):
-        dist += distance_matrix[(route[i], route[i+1])]
+        dist += distance_matrix[(route[i], route[i + 1])]
     dist += distance_matrix[(route[-1], 0)]
     return dist
+
 
 def total_distance(solution):
     """Suma dystansów dla wszystkich tras w solution."""
     return sum(route_distance(r) for r in solution)
+
 
 def is_feasible(solution):
     """Czy w żadnej trasie nie przekroczono ładowności 1000?"""
@@ -101,6 +104,7 @@ def is_feasible(solution):
         if load > TRUCK_CAPACITY:
             return False
     return True
+
 
 def generate_initial_solution():
     """Rozrzucamy klientów 1..30 w sposób losowy na 5 pojazdów."""
@@ -120,6 +124,7 @@ def generate_initial_solution():
             solution[-1].append(city_idx)
     return solution
 
+
 # ------------------------------------------------------------------------------
 #  5. Lokalna optymalizacja (2-opt) w obrębie pojedynczej trasy
 # ------------------------------------------------------------------------------
@@ -134,9 +139,9 @@ def two_opt(route):
     while improved:
         improved = False
         for i in range(len(best_route) - 1):
-            for j in range(i+1, len(best_route)):
+            for j in range(i + 1, len(best_route)):
                 new_route = best_route[:]
-                new_route[i:j+1] = reversed(new_route[i:j+1])
+                new_route[i:j + 1] = reversed(new_route[i:j + 1])
                 new_dist = route_distance(new_route)
                 if new_dist < best_dist:
                     best_route = new_route
@@ -147,6 +152,7 @@ def two_opt(route):
                 break
     return best_route
 
+
 def local_search_2opt(solution):
     """2-opt dla każdej trasy w solution."""
     improved_sol = []
@@ -154,6 +160,7 @@ def local_search_2opt(solution):
         new_r = two_opt(route)
         improved_sol.append(new_r)
     return improved_sol
+
 
 # ------------------------------------------------------------------------------
 #  6. Sąsiedztwo: operator swap, move, swap_within_route
@@ -168,6 +175,7 @@ def swap_cities(solution):
     i2 = random.randint(0, len(new_sol[t2]) - 1)
     new_sol[t1][i1], new_sol[t2][i2] = new_sol[t2][i2], new_sol[t1][i1]
     return new_sol
+
 
 def move_city(solution):
     """Przeniesienie jednego klienta z trasy t1 do t2."""
@@ -184,6 +192,7 @@ def move_city(solution):
     new_sol[t2].append(cityA)
     return new_sol
 
+
 def swap_within_route(solution):
     """Zamiana dwóch klientów w obrębie jednej trasy."""
     new_sol = [r[:] for r in solution]
@@ -197,6 +206,7 @@ def swap_within_route(solution):
     new_sol[t][i1], new_sol[t][i2] = new_sol[t][i2], new_sol[t][i1]
     return new_sol
 
+
 def generate_neighbors(solution, k):
     """Generuje k sąsiadów, każdy ulepszany 2-optem."""
     neighbors = []
@@ -207,6 +217,7 @@ def generate_neighbors(solution, k):
         nsol_ls = local_search_2opt(nsol)
         neighbors.append(nsol_ls)
     return neighbors
+
 
 # ------------------------------------------------------------------------------
 #  7. Tabu Search (stary styl: maxTabuSize, neighborhood_size, stoppingTurn)
@@ -248,13 +259,12 @@ def tabu_search(maxTabuSize, neighborhood_size, stoppingTurn):
                 # pominąć (chyba że aspiracja -> cand_cost < best_cost)
                 continue
 
-            # jeśli jest lepszy od dotychczasowego best_candidate - aktualizujemy
             if cand_cost < best_candidate_cost:
                 best_candidate = cand
                 best_candidate_cost = cand_cost
 
         if best_candidate is None:
-            # Brak feasible spoza tabu -> przerwanie
+            # Brak feasible kandydata spoza tabu -> przerwanie
             print("Brak kandydata spoza tabu. Koniec.")
             break
 
@@ -287,23 +297,24 @@ def tabu_search(maxTabuSize, neighborhood_size, stoppingTurn):
 
     return best_solution, best_cost
 
+
 # ------------------------------------------------------------------------------
 #  8. Wizualizacja (opcjonalna)
 # ------------------------------------------------------------------------------
 def visualize_solution(solution):
     colors = ["red", "green", "blue", "orange", "purple"]
-    plt.figure(figsize=(8,8))
+    plt.figure(figsize=(8, 8))
     # Rysuj miasta
     for i, (name, (lat, lon), _) in enumerate(cities):
-        plt.scatter(lon, lat, c='black' if i != 0 else 'yellow', s=60 if i==0 else 20)
-        plt.text(lon+0.02, lat+0.02, name, fontsize=7)
+        plt.scatter(lon, lat, c='black' if i != 0 else 'yellow', s=60 if i == 0 else 20)
+        plt.text(lon + 0.02, lat + 0.02, name, fontsize=7)
     # Rysuj trasy
     for t_idx, route in enumerate(solution):
         path = [0] + route + [0]
         xx = [cities[i][1][1] for i in path]  # lon
         yy = [cities[i][1][0] for i in path]  # lat
         c = colors[t_idx % len(colors)]
-        plt.plot(xx, yy, color=c, label=f"Truck {t_idx+1}")
+        plt.plot(xx, yy, color=c, label=f"Truck {t_idx + 1}")
     plt.title("Tabu Search - old style params")
     plt.xlabel("Longitude")
     plt.ylabel("Latitude")
@@ -311,26 +322,44 @@ def visualize_solution(solution):
     plt.legend()
     plt.show()
 
+
 # ------------------------------------------------------------------------------
-#  9. Uruchomienie z parametrami
+#  9. Uruchomienie z rożnymi kombinacjami parametrów
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
-    # Możemy wywołać tabu_search z dowolnymi parametrami:
-    msize = 120      # maxTabuSize
-    nsize = 400      # neighborhood_size
-    sturn = 600     # stoppingTurn
+    # Przykładowe zakresy wartości dla testów
+    maxTabuSize_values = [20, 30, 40, 50, 60]
+    neighborhood_size_values = [20, 30, 40, 50, 60]
+    stoppingTurn_values = [50, 60, 70, 80, 90]
 
-    solution, dist_val = tabu_search(
-        maxTabuSize=msize,
-        neighborhood_size=nsize,
-        stoppingTurn=sturn
-    )
+    best_overall = None
+    best_dist_overall = float('inf')
+    best_params = (None, None, None)
 
-    print(f"\n=== Najlepsze rozwiązanie (Tabu Search) ===")
-    for idx, route in enumerate(solution):
+    # Testujemy wszystkie kombinacje
+    for msize in maxTabuSize_values:
+        for nsize in neighborhood_size_values:
+            for sturn in stoppingTurn_values:
+                print("\n---------------------------------")
+                print(f"Test params: maxTabuSize={msize}, neighborhood_size={nsize}, stoppingTurn={sturn}")
+
+                solution, dist_val = tabu_search(msize, nsize, sturn)
+                print(f"-> Zakończono dla parametrów (msize={msize}, nsize={nsize}, sturn={sturn})")
+                print(f"-> Uzyskany dystans = {dist_val:.2f}")
+
+                if dist_val < best_dist_overall:
+                    best_dist_overall = dist_val
+                    best_overall = solution
+                    best_params = (msize, nsize, sturn)
+
+    # Po zakończeniu pętli wszystkie kombinacje przetestowane
+    print("\n=== Najlepszy wynik ze wszystkich kombinacji ===")
+    print(f"Parametry: maxTabuSize={best_params[0]}, neighborhood_size={best_params[1]}, stoppingTurn={best_params[2]}")
+    print(f"Dystans: {best_dist_overall:.2f}")
+    for i, route in enumerate(best_overall):
         names = [cities[r][0] for r in route]
         load = sum(cities[r][2] for r in route)
-        print(f"Samochód {idx+1}: {names}, ładunek={load}")
-    print(f"Całkowity dystans: {dist_val:.2f} km")
+        print(f"Samochód {i + 1}: {names}, ładunek={load}")
 
-    visualize_solution(solution)
+    # Opcjonalnie wizualizacja najlepszej
+    visualize_solution(best_overall)

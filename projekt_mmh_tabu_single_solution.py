@@ -336,8 +336,8 @@ if __name__ == "__main__":
     # sturn = 100     # stoppingTurn
 
     msize = 20      # maxTabuSize
-    nsize = 80      # neighborhood_size
-    sturn = 400     # stoppingTurn
+    nsize = 50      # neighborhood_size
+    sturn = 80     # stoppingTurn
 
     solution, dist_val = tabu_search(
         maxTabuSize=msize,

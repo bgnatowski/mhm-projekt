@@ -1,12 +1,11 @@
 import os
-import math
 import random
 import matplotlib.pyplot as plt
 from dotenv import load_dotenv
 import openrouteservice
 
 # ------------------------------------------------------------------------------
-#  1. Ładowanie klucza API z pliku .env
+#  1. Ładowanie klucza API openrouteservice z pliku .env
 # ------------------------------------------------------------------------------
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
@@ -56,15 +55,15 @@ cities = [
 NUM_CITIES = len(cities)
 
 # ------------------------------------------------------------------------------
-#  3. Pobranie macierzy odległości (OpenRouteService)
+#  3. Pobranie macierzy odległości po długości tras z OpenRouteService
 # ------------------------------------------------------------------------------
 client = openrouteservice.Client(key=API_KEY)
 
 coords = [(lon, lat) for (_, (lat, lon), _) in cities]
 resp = client.distance_matrix(
     locations=coords,
-    profile='driving-car',
-    metrics=['distance'],
+    profile='driving-car', # według jechania autem z miejsca do miejsca (jak nawigacja)
+    metrics=['distance'], # dystans zamiast czasu
     validate=False
 )
 
@@ -220,14 +219,13 @@ def generate_neighbors(solution, k):
 
 
 # ------------------------------------------------------------------------------
-#  7. Tabu Search (stary styl: maxTabuSize, neighborhood_size, stoppingTurn)
+#  7. Tabu Search
 # ------------------------------------------------------------------------------
 def tabu_search(maxTabuSize, neighborhood_size, stoppingTurn):
     """
     Używamy listy tabu o maksymalnym rozmiarze 'maxTabuSize'.
     Generujemy 'neighborhood_size' sąsiadów w każdej iteracji.
-    Zatrzymujemy się, jeśli przez 'stoppingTurn' kolejnych iteracji
-    nie udało się poprawić best_solution.
+    Zatrzymujemy się, jeśli przez 'stoppingTurn' kolejnych iteracji nie udało się poprawić best_solution.
     """
     current_solution = generate_initial_solution()
     while not is_feasible(current_solution):
@@ -259,6 +257,7 @@ def tabu_search(maxTabuSize, neighborhood_size, stoppingTurn):
                 # pominąć (chyba że aspiracja -> cand_cost < best_cost)
                 continue
 
+            # jeśli jest lepszy od dotychczasowego best_candidate - aktualizujemy
             if cand_cost < best_candidate_cost:
                 best_candidate = cand
                 best_candidate_cost = cand_cost
@@ -299,7 +298,7 @@ def tabu_search(maxTabuSize, neighborhood_size, stoppingTurn):
 
 
 # ------------------------------------------------------------------------------
-#  8. Wizualizacja (opcjonalna)
+#  8. Wizualizacja wyników
 # ------------------------------------------------------------------------------
 def visualize_solution(solution):
     colors = ["red", "green", "blue", "orange", "purple"]
@@ -315,7 +314,7 @@ def visualize_solution(solution):
         yy = [cities[i][1][0] for i in path]  # lat
         c = colors[t_idx % len(colors)]
         plt.plot(xx, yy, color=c, label=f"Truck {t_idx + 1}")
-    plt.title("Tabu Search - old style params")
+    plt.title("Tabu Search")
     plt.xlabel("Longitude")
     plt.ylabel("Latitude")
     plt.grid(True)
@@ -324,7 +323,7 @@ def visualize_solution(solution):
 
 
 # ------------------------------------------------------------------------------
-#  9. Uruchomienie z rożnymi kombinacjami parametrów
+#  9. Uruchomienie z różnymi kombinacjami parametrów w celu znalezienia najlepszego
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
     # Przykładowe zakresy wartości dla testów

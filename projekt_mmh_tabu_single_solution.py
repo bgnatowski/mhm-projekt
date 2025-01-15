@@ -1,12 +1,11 @@
 import os
-import math
 import random
 import matplotlib.pyplot as plt
 from dotenv import load_dotenv
 import openrouteservice
 
 # ------------------------------------------------------------------------------
-#  1. Ładowanie klucza API z pliku .env
+#  1. Ładowanie klucza API openrouteservice z pliku .env
 # ------------------------------------------------------------------------------
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
@@ -20,7 +19,7 @@ NUM_TRUCKS = 5
 TRUCK_CAPACITY = 1000
 
 cities = [
-    ("Kraków", (50.06143, 19.93658), 0),   # index 0, depo
+    ("Kraków", (50.06143, 19.93658), 0),  # index 0, depo
     ("Białystok", (53.13333, 23.15), 500),
     ("Bielsko-Biała", (49.82238, 19.05838), 50),
     ("Chrzanów", (50.13554, 19.40262), 400),
@@ -56,15 +55,15 @@ cities = [
 NUM_CITIES = len(cities)
 
 # ------------------------------------------------------------------------------
-#  3. Pobieranie macierzy odległości (OpenRouteService)
+#  3. Pobranie macierzy odległości po długości tras z OpenRouteService
 # ------------------------------------------------------------------------------
 client = openrouteservice.Client(key=API_KEY)
 
 coords = [(lon, lat) for (_, (lat, lon), _) in cities]
 resp = client.distance_matrix(
     locations=coords,
-    profile='driving-car',
-    metrics=['distance'],
+    profile='driving-car', # według jechania autem z miejsca do miejsca (jak nawigacja)
+    metrics=['distance'], # dystans zamiast czasu
     validate=False
 )
 
@@ -77,6 +76,7 @@ for i in range(NUM_CITIES):
         else:
             distance_matrix[(i, j)] = dist_matrix_meters[i][j] / 1000.0  # w km
 
+
 # ------------------------------------------------------------------------------
 #  4. Funkcje pomocnicze
 # ------------------------------------------------------------------------------
@@ -86,13 +86,15 @@ def route_distance(route):
         return 0.0
     dist = distance_matrix[(0, route[0])]
     for i in range(len(route) - 1):
-        dist += distance_matrix[(route[i], route[i+1])]
+        dist += distance_matrix[(route[i], route[i + 1])]
     dist += distance_matrix[(route[-1], 0)]
     return dist
+
 
 def total_distance(solution):
     """Suma dystansów dla wszystkich tras w solution."""
     return sum(route_distance(r) for r in solution)
+
 
 def is_feasible(solution):
     """Czy w żadnej trasie nie przekroczono ładowności 1000?"""
@@ -101,6 +103,7 @@ def is_feasible(solution):
         if load > TRUCK_CAPACITY:
             return False
     return True
+
 
 def generate_initial_solution():
     """Rozrzucamy klientów 1..30 w sposób losowy na 5 pojazdów."""
@@ -120,6 +123,7 @@ def generate_initial_solution():
             solution[-1].append(city_idx)
     return solution
 
+
 # ------------------------------------------------------------------------------
 #  5. Lokalna optymalizacja (2-opt) w obrębie pojedynczej trasy
 # ------------------------------------------------------------------------------
@@ -134,9 +138,9 @@ def two_opt(route):
     while improved:
         improved = False
         for i in range(len(best_route) - 1):
-            for j in range(i+1, len(best_route)):
+            for j in range(i + 1, len(best_route)):
                 new_route = best_route[:]
-                new_route[i:j+1] = reversed(new_route[i:j+1])
+                new_route[i:j + 1] = reversed(new_route[i:j + 1])
                 new_dist = route_distance(new_route)
                 if new_dist < best_dist:
                     best_route = new_route
@@ -147,6 +151,7 @@ def two_opt(route):
                 break
     return best_route
 
+
 def local_search_2opt(solution):
     """2-opt dla każdej trasy w solution."""
     improved_sol = []
@@ -154,6 +159,7 @@ def local_search_2opt(solution):
         new_r = two_opt(route)
         improved_sol.append(new_r)
     return improved_sol
+
 
 # ------------------------------------------------------------------------------
 #  6. Sąsiedztwo: operator swap, move, swap_within_route
@@ -168,6 +174,7 @@ def swap_cities(solution):
     i2 = random.randint(0, len(new_sol[t2]) - 1)
     new_sol[t1][i1], new_sol[t2][i2] = new_sol[t2][i2], new_sol[t1][i1]
     return new_sol
+
 
 def move_city(solution):
     """Przeniesienie jednego klienta z trasy t1 do t2."""
@@ -184,6 +191,7 @@ def move_city(solution):
     new_sol[t2].append(cityA)
     return new_sol
 
+
 def swap_within_route(solution):
     """Zamiana dwóch klientów w obrębie jednej trasy."""
     new_sol = [r[:] for r in solution]
@@ -197,6 +205,7 @@ def swap_within_route(solution):
     new_sol[t][i1], new_sol[t][i2] = new_sol[t][i2], new_sol[t][i1]
     return new_sol
 
+
 def generate_neighbors(solution, k):
     """Generuje k sąsiadów, każdy ulepszany 2-optem."""
     neighbors = []
@@ -208,15 +217,15 @@ def generate_neighbors(solution, k):
         neighbors.append(nsol_ls)
     return neighbors
 
+
 # ------------------------------------------------------------------------------
-#  7. Tabu Search (stary styl: maxTabuSize, neighborhood_size, stoppingTurn)
+#  7. Tabu Search
 # ------------------------------------------------------------------------------
 def tabu_search(maxTabuSize, neighborhood_size, stoppingTurn):
     """
     Używamy listy tabu o maksymalnym rozmiarze 'maxTabuSize'.
     Generujemy 'neighborhood_size' sąsiadów w każdej iteracji.
-    Zatrzymujemy się, jeśli przez 'stoppingTurn' kolejnych iteracji
-    nie udało się poprawić best_solution.
+    Zatrzymujemy się, jeśli przez 'stoppingTurn' kolejnych iteracji nie udało się poprawić best_solution.
     """
     current_solution = generate_initial_solution()
     while not is_feasible(current_solution):
@@ -254,7 +263,7 @@ def tabu_search(maxTabuSize, neighborhood_size, stoppingTurn):
                 best_candidate_cost = cand_cost
 
         if best_candidate is None:
-            # Brak feasible spoza tabu -> przerwanie
+            # Brak feasible kandydata spoza tabu -> przerwanie
             print("Brak kandydata spoza tabu. Koniec.")
             break
 
@@ -287,29 +296,31 @@ def tabu_search(maxTabuSize, neighborhood_size, stoppingTurn):
 
     return best_solution, best_cost
 
+
 # ------------------------------------------------------------------------------
-#  8. Wizualizacja (opcjonalna)
+#  8. Wizualizacja wyników
 # ------------------------------------------------------------------------------
 def visualize_solution(solution):
     colors = ["red", "green", "blue", "orange", "purple"]
-    plt.figure(figsize=(8,8))
+    plt.figure(figsize=(8, 8))
     # Rysuj miasta
     for i, (name, (lat, lon), _) in enumerate(cities):
-        plt.scatter(lon, lat, c='black' if i != 0 else 'yellow', s=60 if i==0 else 20)
-        plt.text(lon+0.02, lat+0.02, name, fontsize=7)
+        plt.scatter(lon, lat, c='black' if i != 0 else 'yellow', s=60 if i == 0 else 20)
+        plt.text(lon + 0.02, lat + 0.02, name, fontsize=7)
     # Rysuj trasy
     for t_idx, route in enumerate(solution):
         path = [0] + route + [0]
         xx = [cities[i][1][1] for i in path]  # lon
         yy = [cities[i][1][0] for i in path]  # lat
         c = colors[t_idx % len(colors)]
-        plt.plot(xx, yy, color=c, label=f"Truck {t_idx+1}")
-    plt.title("Tabu Search - old style params")
+        plt.plot(xx, yy, color=c, label=f"Truck {t_idx + 1}")
+    plt.title("Tabu Search")
     plt.xlabel("Longitude")
     plt.ylabel("Latitude")
     plt.grid(True)
     plt.legend()
     plt.show()
+
 
 # ------------------------------------------------------------------------------
 #  9. Uruchomienie z parametrami
@@ -320,9 +331,13 @@ if __name__ == "__main__":
     # nsize = 50      # neighborhood_size
     # sturn = 80     # stoppingTurn
 
-    msize = 50      # maxTabuSize
-    nsize = 50      # neighborhood_size
-    sturn = 100     # stoppingTurn
+    # msize = 50      # maxTabuSize
+    # nsize = 50      # neighborhood_size
+    # sturn = 100     # stoppingTurn
+
+    msize = 20      # maxTabuSize
+    nsize = 80      # neighborhood_size
+    sturn = 400     # stoppingTurn
 
     solution, dist_val = tabu_search(
         maxTabuSize=msize,
